@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Admin — JADI BOT WA</title>
+<link rel="stylesheet" href="/style.css">
+</head>
+<body>
+
+<div class="auth-shell" id="login-view">
+  <div class="auth-card">
+    <div class="brand">
+      <div class="brand-mark">JB</div>
+      Admin
+    </div>
+    <h1>Masuk Admin</h1>
+    <p class="sub">Buat approve akun user baru.</p>
+    <div class="alert" id="alert"></div>
+    <div class="field">
+      <label for="admin-pass">Password Admin</label>
+      <input type="password" id="admin-pass" placeholder="Password">
+    </div>
+    <button class="btn btn-primary btn-block" id="btn-login">Masuk</button>
+  </div>
+</div>
+
+<div class="dash-shell" id="admin-view" style="display:none">
+  <header class="dash-header">
+    <div class="wrap">
+      <div class="brand"><div class="brand-mark">JB</div> Admin Panel</div>
+      <button class="btn btn-sm" id="btn-refresh">Refresh</button>
+    </div>
+  </header>
+  <main class="dash-main" style="max-width:820px">
+    <h1 style="font-size:24px">Daftar User</h1>
+    <table class="admin-table">
+      <thead>
+        <tr><th>Nama</th><th>Email</th><th>Status</th><th>Aksi</th></tr>
+      </thead>
+      <tbody id="user-table-body"></tbody>
+    </table>
+  </main>
+</div>
+
+<script>
+let adminKey = '';
+
+document.getElementById('btn-login').addEventListener('click', async () => {
+  adminKey = document.getElementById('admin-pass').value;
+  const ok = await loadUsers();
+  if (ok) {
+    document.getElementById('login-view').style.display = 'none';
+    document.getElementById('admin-view').style.display = 'block';
+  }
+});
+
+document.getElementById('btn-refresh').addEventListener('click', loadUsers);
+
+async function loadUsers() {
+  const alertBox = document.getElementById('alert');
+  try {
+    const res = await fetch('/api/list', { headers: { 'x-admin-key': adminKey } });
+    const data = await res.json();
+
+    if (!res.ok) {
+      alertBox.textContent = data.error;
+      alertBox.className = 'alert show err';
+      return false;
+    }
+
+    const body = document.getElementById('user-table-body');
+    body.innerHTML = '';
+    data.users.forEach(u => {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td>${u.nama}</td>
+        <td>${u.email}</td>
+        <td><span class="badge ${u.status}">${u.status}</span></td>
+        <td>
+          ${u.status === 'pending' ? `
+            <button class="btn btn-sm btn-primary" onclick="approve('${u.id}','approved')">Approve</button>
+            <button class="btn btn-sm" onclick="approve('${u.id}','rejected')">Tolak</button>
+          ` : '-'}
+        </td>`;
+      body.appendChild(tr);
+    });
+    return true;
+  } catch (err) {
+    alertBox.textContent = 'Gagal konek ke server';
+    alertBox.className = 'alert show err';
+    return false;
+  }
+}
+
+async function approve(user_id, action) {
+  await fetch('/api/approve', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'x-admin-key': adminKey },
+    body: JSON.stringify({ user_id, action })
+  });
+  loadUsers();
+}
+</script>
+
+</body>
+</html>
